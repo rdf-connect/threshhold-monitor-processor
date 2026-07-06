@@ -1,0 +1,55 @@
+@prefix rdfc: <https://w3id.org/rdf-connect#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix sh: <http://www.w3.org/ns/shacl#>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix rdfl: <https://w3id.org/rdf-lens/ontology#>.
+@prefix tm: <https://w3id.org/rdf-connect/threshold-monitor#>.
+
+tm:ThresholdMonitorJs rdfc:jsImplementationOf rdfc:Processor;
+    rdfs:label "JS/TS Threshold Monitor Processor";
+    rdfs:comment "Reads a stream of SDS members, extracts a value at a configured SHACL path, and writes a tm:ThresholdViolation alert whenever that value falls outside the configured min/max bounds.";
+    rdfc:file <./lib/index.js>;
+    rdfc:class "ThresholdMonitor";
+    rdfc:entrypoint <./>.
+
+[] a sh:NodeShape;
+    sh:targetClass tm:ThresholdMonitorJs;
+    sh:property [
+        sh:class rdfc:Reader;
+        sh:path rdfc:reader;
+        sh:name "reader";
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:class rdfc:Writer;
+        sh:path rdfc:writer;
+        sh:name "writer";
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:class rdfl:PathLens;
+        sh:path tm:path;
+        sh:name "path";
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:double;
+        sh:path tm:min;
+        sh:name "min";
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:double;
+        sh:path tm:max;
+        sh:name "max";
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:iri;
+        sh:path tm:stream;
+        sh:name "streamId";
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:string;
+        sh:path rdfs:label;
+        sh:name "label";
+        sh:maxCount 1;
+    ].
