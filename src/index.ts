@@ -1,20 +1,31 @@
+import { randomUUID } from "node:crypto";
 import { Processor, type Reader, type Writer } from "@rdfc/js-runner";
 import { Parser, Writer as N3Writer, DataFactory } from "n3";
-import { SDS, RDF, XSD, createUriAndTermNamespace } from "@treecg/types";
+import { SDS, RDF, createUriAndTermNamespace } from "@treecg/types";
 import type { BasicLensM, Cont } from "rdf-lens";
 import type { Quad, Term } from "@rdfjs/types";
 
-const { namedNode, literal, quad, blankNode } = DataFactory;
+const { literal, quad, blankNode } = DataFactory;
 
-/** Vocabulary used to describe generated threshold violation alerts. */
-export const TM = createUriAndTermNamespace(
-    "https://w3id.org/rdf-connect/threshold-monitor#",
-    "ThresholdViolation",
-    "member",
-    "value",
-    "violatedBound",
-    "boundValue",
-    "observedAt",
+/** NEPOMUK Message Ontology terms used to describe the generated alert email. */
+export const NMO = createUriAndTermNamespace(
+    "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#",
+    "Email",
+    "isPartOf",
+    "messageSubject",
+    "htmlMessageContent",
+    "emailTo",
+    "messageFrom",
+);
+
+/** mu.semte.ch core vocabulary. */
+export const MU = createUriAndTermNamespace("http://mu.semte.ch/vocabularies/core/", "uuid");
+
+/** Dublin Core terms vocabulary. */
+export const DCT = createUriAndTermNamespace(
+    "http://purl.org/dc/terms/",
+    "creator",
+    "references",
 );
 
 const DATA_DESCRIPTION_GRAPH = SDS.terms.custom("DataDescription");
@@ -27,6 +38,10 @@ type ThresholdMonitorArgs = {
     max?: number;
     streamId?: Term;
     label?: string;
+    mailFolder: Term;
+    mailTo: string;
+    mailFrom: string;
+    creator: Term;
 };
 
 /**
@@ -127,28 +142,35 @@ export class ThresholdMonitor extends Processor<ThresholdMonitorArgs> {
     }
 
     private buildAlert(
+        this: ThresholdMonitorArgs & this,
         member: Term,
         value: number,
         bound: "min" | "max",
         boundValue: number,
     ): Quad[] {
         const id = blankNode();
+        const label = this.label ?? "monitored value";
+        const violation =
+            bound === "min"
+                ? `below the minimum of ${boundValue}`
+                : `above the maximum of ${boundValue}`;
+
+        const subject = `Threshold violation: ${label} ${violation}`;
+        const content =
+            `<p><strong>${label}</strong> reported a value of <strong>${value}</strong> ` +
+            `for <a href="${member.value}">${member.value}</a>, which is ${violation}.</p>` +
+            `<p>Observed at ${new Date().toISOString()}.</p>`;
 
         return [
-            quad(id, RDF.terms.type, TM.terms.ThresholdViolation),
-            quad(id, TM.terms.member, <Quad["object"]>member),
-            quad(id, TM.terms.value, literal(value.toString(), XSD.terms.custom("double"))),
-            quad(id, TM.terms.violatedBound, literal(bound)),
-            quad(
-                id,
-                TM.terms.boundValue,
-                literal(boundValue.toString(), XSD.terms.custom("double")),
-            ),
-            quad(
-                id,
-                TM.terms.observedAt,
-                literal(new Date().toISOString(), XSD.terms.dateTime),
-            ),
+            quad(id, RDF.terms.type, NMO.terms.Email),
+            quad(id, MU.terms.uuid, literal(randomUUID())),
+            quad(id, NMO.terms.isPartOf, <Quad["object"]>this.mailFolder),
+            quad(id, NMO.terms.messageSubject, literal(subject)),
+            quad(id, NMO.terms.htmlMessageContent, literal(content)),
+            quad(id, NMO.terms.emailTo, literal(this.mailTo)),
+            quad(id, NMO.terms.messageFrom, literal(this.mailFrom)),
+            quad(id, DCT.terms.creator, <Quad["object"]>this.creator),
+            quad(id, DCT.terms.references, <Quad["object"]>member),
         ];
     }
 }

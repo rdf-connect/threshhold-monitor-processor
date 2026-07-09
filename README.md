@@ -1,15 +1,16 @@
 # Threshold Monitor Processor
 
 An [RDF-Connect](https://github.com/rdf-connect) processor that watches a numeric
-value on incoming [SDS](https://w3id.org/sds#) members and emits an alert whenever
-that value falls outside a configured `[min, max]` range.
+value on incoming [SDS](https://w3id.org/sds#) members and emits an alert email
+whenever that value falls outside a configured `[min, max]` range.
 
 For each SDS record read from its `reader`, the processor:
 
 1. Looks up the member described by the record's `sds:payload`.
 2. Extracts a value from that member using a configured SHACL path.
 3. If the value is a number and violates the configured `min`/`max` bound, writes
-   a small `tm:ThresholdViolation` alert graph to its `writer`.
+   a small `nmo:Email` alert graph to its `writer`, ready to be inserted into a
+   mailbox graph (e.g. by a [mu-semtech](https://mu.semte.ch/) email microservice).
 
 Messages that don't violate any bound produce no output — the processor is a
 filter/enricher, not a pass-through.
@@ -39,7 +40,11 @@ the following parameters:
 | `min`        | `tm:min`       | no<sup>†</sup>       | `xsd:double`      | Lower bound. Values strictly below `min` trigger an alert with `violatedBound "min"`.                            |
 | `max`        | `tm:max`       | no<sup>†</sup>       | `xsd:double`      | Upper bound. Values strictly above `max` trigger an alert with `violatedBound "max"`.                            |
 | `streamId`   | `tm:stream`    | no                 | IRI               | Restrict monitoring to records whose `sds:stream` equals this IRI. If omitted, every incoming record is checked. |
-| `label`      | `rdfs:label`   | no                 | `xsd:string`      | Human-readable name used only in log output, to distinguish multiple monitor instances.                         |
+| `label`      | `rdfs:label`   | no                 | `xsd:string`      | Human-readable name used in log output and in the generated alert email's subject/body. |
+| `mailFolder` | `tm:mailFolder`| yes                | IRI               | Mailbox folder the alert email is filed under (`nmo:isPartOf`), e.g. an outbox folder IRI. |
+| `mailTo`     | `tm:mailTo`    | yes                | `xsd:string`      | Recipient address of the alert email (`nmo:emailTo`).                                                            |
+| `mailFrom`   | `tm:mailFrom`  | yes                | `xsd:string`      | Sender address of the alert email (`nmo:messageFrom`).                                                           |
+| `creator`    | `tm:creator`   | yes                | IRI               | Agent the alert email is attributed to (`dct:creator`).                                                          |
 
 † At least one of `min` or `max` must be set — `init()` throws if both are
 omitted. Setting only one leaves the other side of the range unchecked (e.g.
@@ -69,37 +74,55 @@ configuring only `max` never flags values that are too low).
     tm:min "10.0"^^xsd:double;
     tm:max "30.0"^^xsd:double;
     tm:stream ex:temperatureStream;
+    tm:mailFolder <http://example.org/mail#outbox>;
+    tm:mailTo "oncall@example.org";
+    tm:mailFrom "monitor@example.org";
+    tm:creator <http://example.org/agents#threshold-monitor>;
     rdfs:label "temperature sensor".
 ```
 
 `sds-in` is expected to carry SDS records (typically produced by an
 `sds-processors` `sdsify`/`bucketize` step or similar), and `alerts-out` can be
-fed into any downstream processor (e.g. an LDES writer, a notifier, a file
-sink) to act on `tm:ThresholdViolation` alerts.
+fed into any downstream processor (e.g. a SPARQL-inserting sink) to act on the
+generated `nmo:Email` alerts.
 
 ## Alert output
 
 Each violation is written to `writer` as a standalone N-Quads/Turtle string
 containing a blank-node subject with:
 
-| Predicate                       | Value                                                              |
-| -------------------------------- | ------------------------------------------------------------------- |
-| `rdf:type`                       | `tm:ThresholdViolation`                                            |
-| `tm:member`                      | IRI of the SDS member that violated the bound                      |
-| `tm:value`                       | the observed numeric value (`xsd:double`)                          |
-| `tm:violatedBound`               | `"min"` or `"max"`, indicating which bound was violated             |
-| `tm:boundValue`                  | the configured bound value that was violated (`xsd:double`)         |
-| `tm:observedAt`                  | timestamp the alert was generated, as `xsd:dateTime`                |
+| Predicate                | Value                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `rdf:type`                 | `nmo:Email`                                                            |
+| `mu:uuid`                  | a freshly generated UUID for the email                                |
+| `nmo:isPartOf`              | the configured `mailFolder` IRI                                       |
+| `nmo:messageSubject`        | a generated subject describing the violation                          |
+| `nmo:htmlMessageContent`    | a generated HTML body describing the member, value, and violated bound |
+| `nmo:emailTo`               | the configured `mailTo` address                                       |
+| `nmo:messageFrom`           | the configured `mailFrom` address                                     |
+| `dct:creator`               | the configured `creator` IRI                                          |
+| `dct:references`            | IRI of the SDS member that violated the bound                         |
 
-Example:
+This shape is designed to be insertable directly into a mailbox graph, e.g.:
 
-```turtle
-_:b0 a <https://w3id.org/rdf-connect/threshold-monitor#ThresholdViolation>;
-    <https://w3id.org/rdf-connect/threshold-monitor#member> <http://example.org/m1>;
-    <https://w3id.org/rdf-connect/threshold-monitor#value> "5"^^<http://www.w3.org/2001/XMLSchema#double>;
-    <https://w3id.org/rdf-connect/threshold-monitor#violatedBound> "min";
-    <https://w3id.org/rdf-connect/threshold-monitor#boundValue> "10"^^<http://www.w3.org/2001/XMLSchema#double>;
-    <https://w3id.org/rdf-connect/threshold-monitor#observedAt> "2026-07-06T12:00:00.000Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>.
+```sparql
+PREFIX nmo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#>
+PREFIX mu:  <http://mu.semte.ch/vocabularies/core/>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+INSERT DATA {
+  GRAPH <http://mu.semte.ch/graphs/mail> {
+    <http://example.org/emails/1> a nmo:Email;
+        mu:uuid "…";
+        nmo:isPartOf <http://example.org/mail#outbox>;
+        nmo:messageSubject "…";
+        nmo:htmlMessageContent "…";
+        nmo:emailTo "oncall@example.org";
+        nmo:messageFrom "monitor@example.org";
+        dct:creator <http://example.org/agents#threshold-monitor>;
+        dct:references <http://example.org/m1> .
+  }
+}
 ```
 
 Values found at the configured path that aren't literals, or aren't parseable

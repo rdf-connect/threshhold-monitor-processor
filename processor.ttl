@@ -52,4 +52,28 @@ tm:ThresholdMonitorJs rdfc:jsImplementationOf rdfc:Processor;
         sh:path rdfs:label;
         sh:name "label";
         sh:maxCount 1;
+    ], [
+        sh:datatype xsd:iri;
+        sh:path tm:mailFolder;
+        sh:name "mailFolder";
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:string;
+        sh:path tm:mailTo;
+        sh:name "mailTo";
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:string;
+        sh:path tm:mailFrom;
+        sh:name "mailFrom";
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:datatype xsd:iri;
+        sh:path tm:creator;
+        sh:name "creator";
+        sh:minCount 1;
+        sh:maxCount 1;
     ].

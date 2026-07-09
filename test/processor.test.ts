@@ -29,6 +29,10 @@ describe("tm:ThresholdMonitorJs processor definition", () => {
           tm:min "10.0"^^xsd:double;
           tm:max "30.0"^^xsd:double;
           tm:stream <http://example.org/ns#stream1>;
+          tm:mailFolder <http://example.org/mail#outbox>;
+          tm:mailTo "oncall@example.org";
+          tm:mailFrom "monitor@example.org";
+          tm:creator <http://example.org/agents#threshold-monitor>;
           rdfs:label "temperature sensor".
         `;
         const instanceQuads = new Parser({ baseIRI: "" }).parse(instance);
@@ -51,6 +55,10 @@ describe("tm:ThresholdMonitorJs processor definition", () => {
             min: number;
             max: number;
             streamId: unknown;
+            mailFolder: { value: string };
+            mailTo: string;
+            mailFrom: string;
+            creator: { value: string };
         }>lens.execute({
             id: namedNode("http://example.com/ns#monitor"),
             quads,
@@ -58,6 +66,10 @@ describe("tm:ThresholdMonitorJs processor definition", () => {
 
         expect(args.min).toBe(10);
         expect(args.max).toBe(30);
+        expect(args.mailFolder.value).toBe("http://example.org/mail#outbox");
+        expect(args.mailTo).toBe("oncall@example.org");
+        expect(args.mailFrom).toBe("monitor@example.org");
+        expect(args.creator.value).toBe("http://example.org/agents#threshold-monitor");
 
         const dataQuads = new Parser().parse(
             `<http://example.org/ns#member1> <http://example.org/ns#temperature> "42.5"^^<http://www.w3.org/2001/XMLSchema#double>.`,

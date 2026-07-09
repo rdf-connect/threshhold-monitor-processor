@@ -11,6 +11,8 @@ const { namedNode } = DataFactory;
 
 const TEMP = namedNode("http://example.org/ns#temperature");
 const SDS_GRAPH = "https://w3id.org/sds#DataDescription";
+const MAIL_FOLDER = namedNode("http://example.org/mail#outbox");
+const CREATOR = namedNode("http://example.org/agents#threshold-monitor");
 
 function sdsMessage(memberId: string, temperature: number): string {
     return `
@@ -32,6 +34,10 @@ describe("ThresholdMonitor", () => {
                 path: pred(TEMP),
                 min: 10,
                 max: 30,
+                mailFolder: MAIL_FOLDER,
+                mailTo: "oncall@example.org",
+                mailFrom: "monitor@example.org",
+                creator: CREATOR,
             },
             logger,
         );
@@ -62,8 +68,15 @@ describe("ThresholdMonitor", () => {
         expect(
             firstAlert.some(
                 (q) =>
-                    q.predicate.value ===
-                        "https://w3id.org/rdf-connect/threshold-monitor#member" &&
+                    q.predicate.value === "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" &&
+                    q.object.value ===
+                        "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#Email",
+            ),
+        ).toBe(true);
+        expect(
+            firstAlert.some(
+                (q) =>
+                    q.predicate.value === "http://purl.org/dc/terms/references" &&
                     q.object.value === "http://example.org/m1",
             ),
         ).toBe(true);
@@ -71,8 +84,16 @@ describe("ThresholdMonitor", () => {
             firstAlert.some(
                 (q) =>
                     q.predicate.value ===
-                        "https://w3id.org/rdf-connect/threshold-monitor#violatedBound" &&
-                    q.object.value === "min",
+                        "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#isPartOf" &&
+                    q.object.value === MAIL_FOLDER.value,
+            ),
+        ).toBe(true);
+        expect(
+            firstAlert.some(
+                (q) =>
+                    q.predicate.value ===
+                        "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#emailTo" &&
+                    q.object.value === "oncall@example.org",
             ),
         ).toBe(true);
 
@@ -80,9 +101,8 @@ describe("ThresholdMonitor", () => {
         expect(
             secondAlert.some(
                 (q) =>
-                    q.predicate.value ===
-                        "https://w3id.org/rdf-connect/threshold-monitor#violatedBound" &&
-                    q.object.value === "max",
+                    q.predicate.value === "http://purl.org/dc/terms/references" &&
+                    q.object.value === "http://example.org/m3",
             ),
         ).toBe(true);
     });
@@ -96,6 +116,10 @@ describe("ThresholdMonitor", () => {
                 reader: inputReader,
                 writer: outputWriter,
                 path: pred(TEMP),
+                mailFolder: MAIL_FOLDER,
+                mailTo: "oncall@example.org",
+                mailFrom: "monitor@example.org",
+                creator: CREATOR,
             },
             logger,
         );
