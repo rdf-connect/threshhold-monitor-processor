@@ -11,7 +11,6 @@ const { namedNode } = DataFactory;
 
 const TEMP = namedNode("http://example.org/ns#temperature");
 const SDS_GRAPH = "https://w3id.org/sds#DataDescription";
-const MAIL_FOLDER = namedNode("http://example.org/mail#outbox");
 const CREATOR = namedNode("http://example.org/agents#threshold-monitor");
 
 function sdsMessage(memberId: string, temperature: number): string {
@@ -34,9 +33,6 @@ describe("ThresholdMonitor", () => {
                 path: pred(TEMP),
                 min: 10,
                 max: 30,
-                mailFolder: MAIL_FOLDER,
-                mailTo: "oncall@example.org",
-                mailFrom: "monitor@example.org",
                 creator: CREATOR,
             },
             logger,
@@ -69,8 +65,7 @@ describe("ThresholdMonitor", () => {
             firstAlert.some(
                 (q) =>
                     q.predicate.value === "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" &&
-                    q.object.value ===
-                        "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#Email",
+                    q.object.value === "http://open-services.net/ns/core#Error",
             ),
         ).toBe(true);
         expect(
@@ -83,17 +78,24 @@ describe("ThresholdMonitor", () => {
         expect(
             firstAlert.some(
                 (q) =>
-                    q.predicate.value ===
-                        "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#isPartOf" &&
-                    q.object.value === MAIL_FOLDER.value,
+                    q.predicate.value === "http://purl.org/dc/terms/creator" &&
+                    q.object.value === CREATOR.value,
             ),
         ).toBe(true);
         expect(
             firstAlert.some(
                 (q) =>
-                    q.predicate.value ===
-                        "http://www.semanticdesktop.org/ontologies/2007/03/22/nmo#emailTo" &&
-                    q.object.value === "oncall@example.org",
+                    q.predicate.value === "http://open-services.net/ns/core#message" &&
+                    q.object.termType === "Literal",
+            ),
+        ).toBe(true);
+        expect(
+            firstAlert.some(
+                (q) =>
+                    q.predicate.value === "http://purl.org/dc/terms/created" &&
+                    q.object.termType === "Literal" &&
+                    (<{ datatype?: { value: string } }>q.object).datatype?.value ===
+                        "http://www.w3.org/2001/XMLSchema#dateTime",
             ),
         ).toBe(true);
 
@@ -116,9 +118,6 @@ describe("ThresholdMonitor", () => {
                 reader: inputReader,
                 writer: outputWriter,
                 path: pred(TEMP),
-                mailFolder: MAIL_FOLDER,
-                mailTo: "oncall@example.org",
-                mailFrom: "monitor@example.org",
                 creator: CREATOR,
             },
             logger,

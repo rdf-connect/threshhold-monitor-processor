@@ -4,6 +4,10 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
 @prefix rdfl: <https://w3id.org/rdf-lens/ontology#>.
 @prefix tm: <https://w3id.org/rdf-connect/threshold-monitor#>.
+@prefix oslc: <http://open-services.net/ns/core#>.
+@prefix dct: <http://purl.org/dc/terms/>.
+@prefix mu: <http://mu.semte.ch/vocabularies/core/>.
+@prefix ex: <http://lblod.data.gift/shapes/>.
 
 tm:ThresholdMonitorJs rdfc:jsImplementationOf rdfc:Processor;
     rdfs:label "JS/TS Threshold Monitor Processor";
@@ -54,26 +58,61 @@ tm:ThresholdMonitorJs rdfc:jsImplementationOf rdfc:Processor;
         sh:maxCount 1;
     ], [
         sh:datatype xsd:iri;
-        sh:path tm:mailFolder;
-        sh:name "mailFolder";
-        sh:minCount 1;
-        sh:maxCount 1;
-    ], [
-        sh:datatype xsd:string;
-        sh:path tm:mailTo;
-        sh:name "mailTo";
-        sh:minCount 1;
-        sh:maxCount 1;
-    ], [
-        sh:datatype xsd:string;
-        sh:path tm:mailFrom;
-        sh:name "mailFrom";
-        sh:minCount 1;
-        sh:maxCount 1;
-    ], [
-        sh:datatype xsd:iri;
         sh:path tm:creator;
         sh:name "creator";
         sh:minCount 1;
+        sh:maxCount 1;
+    ].
+
+# Shape of the oslc:Error reports written to `writer`.
+ex:ErrorShape
+    a sh:NodeShape;
+    sh:targetClass oslc:Error;
+
+    sh:property [
+        sh:path mu:uuid;
+        sh:name "uuid";
+        sh:datatype xsd:string;
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:path dct:subject;
+        sh:name "subject";
+        sh:description "Service that failed and threw the error.";
+        sh:datatype xsd:string;
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:path oslc:message;
+        sh:name "message";
+        sh:description "Short description of what functionally went wrong.";
+        sh:datatype xsd:string;
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:path dct:created;
+        sh:name "created";
+        sh:description "Time the error occurred and was logged.";
+        sh:datatype xsd:dateTime;
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:path dct:creator;
+        sh:name "creator";
+        sh:description "Service that threw the error.";
+        sh:nodeKind sh:IRI;
+        sh:minCount 1;
+        sh:maxCount 1;
+    ], [
+        sh:path oslc:largePreview;
+        sh:name "detail";
+        sh:description "Detail of the error, e.g. stacktrace or request dump.";
+        sh:datatype xsd:string;
+        sh:maxCount 1;
+    ], [
+        sh:path dct:references;
+        sh:name "references";
+        sh:description "Resource the error is related to.";
+        sh:nodeKind sh:IRI;
         sh:maxCount 1;
     ].

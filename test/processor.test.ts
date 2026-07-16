@@ -29,9 +29,6 @@ describe("tm:ThresholdMonitorJs processor definition", () => {
           tm:min "10.0"^^xsd:double;
           tm:max "30.0"^^xsd:double;
           tm:stream <http://example.org/ns#stream1>;
-          tm:mailFolder <http://example.org/mail#outbox>;
-          tm:mailTo "oncall@example.org";
-          tm:mailFrom "monitor@example.org";
           tm:creator <http://example.org/agents#threshold-monitor>;
           rdfs:label "temperature sensor".
         `;
@@ -55,9 +52,6 @@ describe("tm:ThresholdMonitorJs processor definition", () => {
             min: number;
             max: number;
             streamId: unknown;
-            mailFolder: { value: string };
-            mailTo: string;
-            mailFrom: string;
             creator: { value: string };
         }>lens.execute({
             id: namedNode("http://example.com/ns#monitor"),
@@ -66,9 +60,6 @@ describe("tm:ThresholdMonitorJs processor definition", () => {
 
         expect(args.min).toBe(10);
         expect(args.max).toBe(30);
-        expect(args.mailFolder.value).toBe("http://example.org/mail#outbox");
-        expect(args.mailTo).toBe("oncall@example.org");
-        expect(args.mailFrom).toBe("monitor@example.org");
         expect(args.creator.value).toBe("http://example.org/agents#threshold-monitor");
 
         const dataQuads = new Parser().parse(
